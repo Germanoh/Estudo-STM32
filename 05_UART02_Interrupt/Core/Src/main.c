@@ -22,7 +22,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include<string.h>
+#include<stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -64,17 +65,50 @@ static void MX_USART1_UART_Init(void);
   * @retval int
   */
 
-// estado do LED, 0 Apagado e 1 aceso
-uint8_t DadoRX[1] = {0};
+// comando a ser enviado para serial, 0 Apaga o Led e 1 Acende o Led
+uint8_t DadoRX = 0;
 
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle) {
-	// se o usuário digitar 1 e o LED estiver apagado, o LED irá acender
-	if (DadoRX[0] == '1' && !HAL_GPIO_ReadPin(LED_VERMELHO_GPIO_Port, LED_VERMELHO_Pin))
+// guarda o estado do Led, 0 apagado, 1 aceso
+uint8_t DadoTX[1] = {0};
+
+// variável para decidir se deve ser escrito o estado do Led
+uint8_t flag = 0;
+
+// quando acabar o recebimento do dado que está sendo transmitido pela UART
+// a função HAL_UART_RxCpltCallback será chamada e depois irá retornar
+// o controle ao programa principal
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart1)
+{
+	// se o usuário digitar o caractere 1 (0x31) e o LED estiver apagado, o LED irá acender
+	if (DadoRX == 0X31 && !HAL_GPIO_ReadPin(LED_VERMELHO_GPIO_Port, LED_VERMELHO_Pin))
+	{
 		HAL_GPIO_TogglePin(LED_VERMELHO_GPIO_Port, LED_VERMELHO_Pin);
-	// se o usuário digitar 0 e o LED estiver aceso, o LED irá apagar
-	if (DadoRX[0] == '0' && HAL_GPIO_ReadPin(LED_VERMELHO_GPIO_Port, LED_VERMELHO_Pin))
-			HAL_GPIO_TogglePin(LED_VERMELHO_GPIO_Port, LED_VERMELHO_Pin);
+		flag = 0;
+	}
+	// se o usuário digitar o caractere 0 (0x30) e o LED estiver aceso, o LED irá apagar
+	else if (DadoRX == 0X30 && HAL_GPIO_ReadPin(LED_VERMELHO_GPIO_Port, LED_VERMELHO_Pin))
+	{
+		HAL_GPIO_TogglePin(LED_VERMELHO_GPIO_Port, LED_VERMELHO_Pin);
+		flag = 0;
+	}
+	else
+		flag = 1;
 
+	// se o usuário mandar algum comando para a UART o valor da flag permanece em 0 e será
+	// impresso o estado do LED
+	if (!flag)
+	{
+		// Atualiza a tela do terminal com o estado do led
+		// Quando a leitura da função HAL_GPIO_ReadPin for 1, DadoTX guardará o valor '1'
+		// quando for 0, DadoTX guardará o valor '0'
+		if (HAL_GPIO_ReadPin(LED_VERMELHO_GPIO_Port, LED_VERMELHO_Pin) == GPIO_PIN_SET)
+			DadoTX[1] = '1';
+		else
+			DadoTX[1] = '0';
+
+		// Envia pela serial texto atualizado
+		HAL_UART_Transmit(huart1, DadoTX, 2, 500);
+	}
 }
 
 int main(void)
@@ -111,8 +145,10 @@ int main(void)
 
   while (1)
   {
-	HAL_UART_Receive_IT(&huart1, DadoRX, 1);
-    /* USER CODE END WHILE */
+	// recebe dados pela UART
+	HAL_UART_Receive_IT(&huart1, &DadoRX, 1);
+
+	/* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
   }

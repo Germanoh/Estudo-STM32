@@ -61,6 +61,11 @@ static void MX_USART1_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+char DadoTX[50];
+
+// guarda o valor da conversão ADC
+uint16_t valc;
+uint16_t voltage;
 
 /* USER CODE END 0 */
 
@@ -96,18 +101,14 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 
+  // inicializa o periférico do ADC
+  HAL_ADC_Start(&hadc1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	// guarda o valor da conversão ADC
-	uint16_t valc;
-
-	// inicializa o periférico do ADC
-	HAL_ADC_Start(&hadc1);
-
 	// inicializa a conversão, para modo simples o periférico deve ser
 	// inicializado antes de toda conversão
 	HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
@@ -115,16 +116,19 @@ int main(void)
 	// a função HAL_ADC_GetValue retorna o valor da conversão em decimal
 	valc = HAL_ADC_GetValue(&hadc1);
 
+	voltage = ((3.3 * valc) / 4095) * 100;
+
 	// sendo valc mais que (3,3 / 2) o led acende e menos apaga
-	if (valc > 4095 / 2)
-		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, 1);
+	if (voltage < (330 / 2))
+	{
+		HAL_GPIO_WritePin(LED_VERMELHO_GPIO_Port, LED_VERMELHO_Pin, 1);
+	}
 	else
-		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, 0);
+	{
+		HAL_GPIO_WritePin(LED_VERMELHO_GPIO_Port, LED_VERMELHO_Pin, 0);
+	}
 
-
-	char DadoTX[10];
-
-	sprintf(DadoTX, "%hu\r\n", valc);
+	sprintf(DadoTX, "voltage: %hu\r\n", voltage);
 
 	// transmite o valor da conversão para a UART
 	HAL_UART_Transmit(&huart1, (uint8_t *)DadoTX, strlen(DadoTX), HAL_MAX_DELAY);
@@ -200,7 +204,7 @@ static void MX_ADC1_Init(void)
   */
   hadc1.Instance = ADC1;
   hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
-  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.ContinuousConvMode = ENABLE;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
@@ -267,18 +271,18 @@ static void MX_GPIO_Init(void)
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LED_VERMELHO_GPIO_Port, LED_VERMELHO_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : LED_Pin */
-  GPIO_InitStruct.Pin = LED_Pin;
+  /*Configure GPIO pin : LED_VERMELHO_Pin */
+  GPIO_InitStruct.Pin = LED_VERMELHO_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(LED_VERMELHO_GPIO_Port, &GPIO_InitStruct);
 
 }
 
